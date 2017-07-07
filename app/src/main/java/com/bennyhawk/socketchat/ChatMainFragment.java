@@ -16,14 +16,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -104,12 +103,25 @@ public class ChatMainFragment extends Fragment {
         mSocket.on("message", onMessage);
         mSocket.connect();
 
-        mSocket.emit("new user", "shubham21197", "bennyhawk", "testroom");
-
-
-
-
+        mSocket.emit("new user", "bennyhawk", "shubham21197", new Ack() {
+            @Override
+            public void call(Object... args) {
+                if (args[0].toString().equals("true")) {
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(getActivity(), "Running!", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        });
     }
+
+
+
+
+
 
     private Emitter.Listener onMessage = new Emitter.Listener() {
         @Override
@@ -483,7 +495,7 @@ Message completeMessage = new Message();
         mMessageInput.setText("");
         addMessage(mUserName, message,Message.TYPE_MESSAGE_USER);
 
-        mSocket.emit("chat message", message);
+        mSocket.emit("chat message", message, "testroom");
     }
 
     private void scrollToBottom() {
