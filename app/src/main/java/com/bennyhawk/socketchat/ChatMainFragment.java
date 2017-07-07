@@ -27,6 +27,7 @@ import java.util.List;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
+import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
@@ -84,7 +85,7 @@ public class ChatMainFragment extends Fragment {
         //mMessageArrayList = mMessageStore.copyFromRealm(messageRealmResults);
 
         try {
-            mSocket = IO.socket("https://socketio-chat.now.sh/");
+            mSocket = IO.socket("http://139.59.35.160:4000");
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -98,10 +99,43 @@ public class ChatMainFragment extends Fragment {
         mSocket.on("user left", onUserLeft);
         mSocket.on("typing", onTyping);
         mSocket.on("stop typing", onStopTyping);
-        mSocket.connect();
         mSocket.on("login", onLogin);
 
+        mSocket.on("message", onMessage);
+        mSocket.connect();
+
+        mSocket.emit("new user", "shubham21197", "bennyhawk", "testroom");
+
+
+
+
     }
+
+    private Emitter.Listener onMessage = new Emitter.Listener() {
+        @Override
+        public void call(final Object... args) {
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    JSONObject data = (JSONObject) args[0];
+                    Log.d("TAG",data.toString());
+                    String username;
+                    String message;
+                    try {
+                        username = data.getString("user");
+                        message = data.getString("msg");
+                    } catch (JSONException e) {
+                        Log.e("TAG", e.getMessage());
+                        return;
+                    }
+
+                    addMessage(username, message,Message.TYPE_MESSAGE_OTHER);
+                }
+            });
+        }
+    };
+
+
 
 
 
@@ -117,13 +151,13 @@ public class ChatMainFragment extends Fragment {
 
         mLayoutManager = new LinearLayoutManager(getContext());
         mMessageAdapter = new MessageAdapter(getContext());
-        mMessageAdapter.setHasStableIds(true);
+
 
 
         mMessageList.setLayoutManager(mLayoutManager);
         mMessageList.setAdapter(mMessageAdapter);
 
-        //mMessageList.setHasFixedSize(true);
+
 
 
 
@@ -357,20 +391,20 @@ public class ChatMainFragment extends Fragment {
 
 
         final String tempusername = username; final String tempmessage=message; final int temptype=type;
-mMessageStore.executeTransaction(new Realm.Transaction() {
-    @Override
-    public void execute(Realm realm) {
+        mMessageStore.executeTransaction(new Realm.Transaction() {
+            @Override
+            public void execute(Realm realm) {
 
-        final Message completeMessage = new Message.MessageBuilder(calendar.getTime())
-                .username(tempusername)
-                .message(tempmessage)
-                .type(temptype)
-                .build();
-        realm.insert(completeMessage);
+                final Message completeMessage = new Message.MessageBuilder(calendar.getTime())
+                        .username(tempusername)
+                        .message(tempmessage)
+                        .type(temptype)
+                        .build();
+                realm.insert(completeMessage);
 
 
-    }
-});
+            }
+        });
         mMessageAdapter.notifyItemInserted(messageRealmResults.size() - 1);
         //mMessageAdapter.notifyDataSetChanged();
 
@@ -449,7 +483,7 @@ Message completeMessage = new Message();
         mMessageInput.setText("");
         addMessage(mUserName, message,Message.TYPE_MESSAGE_USER);
 
-        mSocket.emit("new message", message);
+        mSocket.emit("chat message", message);
     }
 
     private void scrollToBottom() {
