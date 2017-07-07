@@ -495,7 +495,19 @@ Message completeMessage = new Message();
         mMessageInput.setText("");
         addMessage(mUserName, message,Message.TYPE_MESSAGE_USER);
 
-        mSocket.emit("chat message", message, "testroom");
+        mSocket.emit("chat message", message, new Ack() {
+            @Override
+            public void call(Object... args) {
+                if (args[0].toString().equals("true")) {
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(getActivity(), "Sent!", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        });
     }
 
     private void scrollToBottom() {
