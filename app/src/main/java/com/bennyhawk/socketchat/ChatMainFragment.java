@@ -31,11 +31,8 @@ import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
 
-import static android.content.ContentValues.TAG;
-
 public class ChatMainFragment extends Fragment {
 
-    private static final String USER_NAME = "userName";
     private static final int TYPING_TIMER_LENGTH = 600;
 
     private RecyclerView mMessageList;
@@ -51,29 +48,31 @@ public class ChatMainFragment extends Fragment {
     private RealmResults<Message> messageRealmResults;
 
     private String mUserName;
+    private String mReciever;
     private String mLastMessageUserName;
     private int mLastMessageType;
     //private List<Message> mMessageArrayList=new ArrayList<>();
-    private int mNumUsers = 0;
+//    private int mNumUsers = 0;
     private boolean mTyping = false;
 
     public ChatMainFragment() {
         // Required empty public constructor
     }
 
-    public static ChatMainFragment newInstance(String userName) {
-        ChatMainFragment fragment = new ChatMainFragment();
-        Bundle args = new Bundle();
-        args.putString(USER_NAME, userName);
-        fragment.setArguments(args);
-        return fragment;
-    }
+//    public static ChatMainFragment newInstance(String userName) {
+//        ChatMainFragment fragment = new ChatMainFragment();
+//        Bundle args = new Bundle();
+//        args.putString(USER_NAME, userName);
+//        fragment.setArguments(args);
+//        return fragment;
+//    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            mUserName = getArguments().getString(USER_NAME);
+            mUserName = "pranav";
+            mReciever = "datta";
         }
 
         Realm.init(getContext());
@@ -93,61 +92,29 @@ public class ChatMainFragment extends Fragment {
         mSocket.on(Socket.EVENT_CONNECT_ERROR, onConnectError);
         mSocket.on(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
 
-        mSocket.on("new message", onNewMessage);
-        mSocket.on("user joined", onUserJoined);
-        mSocket.on("user left", onUserLeft);
+//        mSocket.on("user joined", onUserJoined);
+//        mSocket.on("user left", onUserLeft);
         mSocket.on("typing", onTyping);
         mSocket.on("stop typing", onStopTyping);
-        mSocket.on("login", onLogin);
+//        mSocket.on("login", onLogin);
 
         mSocket.on("message", onMessage);
         mSocket.connect();
 
-        mSocket.emit("new user", "bennyhawk", "shubham21197", new Ack() {
-            @Override
-            public void call(Object... args) {
-                if (args[0].toString().equals("true")) {
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(getActivity(), "Running!", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-            }
-        });
+//        mSocket.emit("new user", mUserName, mReciever, new Ack() {
+//            @Override
+//            public void call(Object... args) {
+//                if (args[0].toString().equals("true")) {
+//                    getActivity().runOnUiThread(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            Toast.makeText(getActivity(), "Running!", Toast.LENGTH_SHORT).show();
+//                        }
+//                    });
+//                }
+//            }
+//        });
     }
-
-
-
-
-
-
-    private Emitter.Listener onMessage = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    Log.d("TAG",data.toString());
-                    String username;
-                    String message;
-                    try {
-                        username = data.getString("user");
-                        message = data.getString("msg");
-                    } catch (JSONException e) {
-                        Log.e("TAG", e.getMessage());
-                        return;
-                    }
-
-                    addMessage(username, message,Message.TYPE_MESSAGE_OTHER);
-                }
-            });
-        }
-    };
-
-
 
 
 
@@ -164,14 +131,8 @@ public class ChatMainFragment extends Fragment {
         mLayoutManager = new LinearLayoutManager(getContext());
         mMessageAdapter = new MessageAdapter(getContext());
 
-
-
         mMessageList.setLayoutManager(mLayoutManager);
         mMessageList.setAdapter(mMessageAdapter);
-
-
-
-
 
         mSendButton.setOnClickListener(mSendClickListener);
         mMessageInput.addTextChangedListener(textWatcher);
@@ -192,12 +153,11 @@ public class ChatMainFragment extends Fragment {
         mSocket.off(Socket.EVENT_CONNECT, onConnect);
         mSocket.off(Socket.EVENT_CONNECT_ERROR, onConnectError);
         mSocket.off(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
-        mSocket.off("new message", onNewMessage);
-        mSocket.off("user joined", onUserJoined);
-        mSocket.off("user left", onUserLeft);
+//        mSocket.off("user joined", onUserJoined);
+//        mSocket.off("user left", onUserLeft);
         mSocket.off("typing", onTyping);
         mSocket.off("stop typing", onStopTyping);
-        mSocket.off("login", onLogin);
+//        mSocket.off("login", onLogin);
         mToolbar.setSubtitle(null);
         mLastMessageUserName="";
         mLastMessageType=0;
@@ -258,8 +218,20 @@ public class ChatMainFragment extends Fragment {
             getActivity().runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    mSocket.emit("add user", mUserName);
-                    mToolbar.setSubtitle("Connected");
+                    mSocket.emit("new user", mReciever, mUserName, new Ack() {
+                        @Override
+                        public void call(Object... args) {
+                            if (args[0].toString().equals("true")) {
+                                getActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mToolbar.setSubtitle("Connected");
+                                    }
+                                });
+                            }
+                        }
+                    });
+
                 }
             });
         }
@@ -277,69 +249,66 @@ public class ChatMainFragment extends Fragment {
         }
     };
 
-    private Emitter.Listener onNewMessage = new Emitter.Listener() {
+    private Emitter.Listener onMessage = new Emitter.Listener() {
         @Override
         public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
                     JSONObject data = (JSONObject) args[0];
+                    Log.d("TAG",data.toString());
                     String username;
                     String message;
                     try {
-                        username = data.getString("username");
-                        message = data.getString("message");
+                        username = data.getString("user");
+                        message = data.getString("msg");
                     } catch (JSONException e) {
                         Log.e("TAG", e.getMessage());
                         return;
                     }
 
-                    addMessage(username, message,Message.TYPE_MESSAGE_OTHER);
-                }
-            });
+                    addMessage("", data.toString(),Message.TYPE_MESSAGE_OTHER);
         }
     };
 
-    private Emitter.Listener onUserJoined = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    try {
-                        username = data.getString("username");
-                        mNumUsers = data.getInt("numUsers");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-                    addMessage("",username + " joined",Message.TYPE_LOG);
-                }
-            });
-        }
-    };
-    private Emitter.Listener onUserLeft = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    try {
-                        username = data.getString("username");
-                        mNumUsers = data.getInt("numUsers");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-                    addMessage("",username + " left",Message.TYPE_LOG);
-                }
-            });
-        }
-    };
+
+//    private Emitter.Listener onUserJoined = new Emitter.Listener() {
+//        @Override
+//        public void call(final Object... args) {
+//            getActivity().runOnUiThread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    JSONObject data = (JSONObject) args[0];
+//                    String username;
+//                    try {
+//                        username = data.getString("username");
+//                        mNumUsers = data.getInt("numUsers");
+//                    } catch (JSONException e) {
+//                        Log.e(TAG, e.getMessage());
+//                        return;
+//                    }
+//                    addMessage("",username + " joined",Message.TYPE_LOG);
+//                }
+//            });
+//        }
+//    };
+//    private Emitter.Listener onUserLeft = new Emitter.Listener() {
+//        @Override
+//        public void call(final Object... args) {
+//            getActivity().runOnUiThread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    JSONObject data = (JSONObject) args[0];
+//                    String username;
+//                    try {
+//                        username = data.getString("username");
+//                        mNumUsers = data.getInt("numUsers");
+//                    } catch (JSONException e) {
+//                        Log.e(TAG, e.getMessage());
+//                        return;
+//                    }
+//                    addMessage("",username + " left",Message.TYPE_LOG);
+//                }
+//            });
+//        }
+//    };
 
     private Emitter.Listener onTyping = new Emitter.Listener() {
         @Override
@@ -372,37 +341,36 @@ public class ChatMainFragment extends Fragment {
         }
     };
 
-    private Emitter.Listener onLogin = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    try {
-                        mNumUsers = data.getInt("numUsers");
-                    } catch (JSONException e) {
-                        return;
-                    }
-                    mToolbar.setSubtitle("Members Online :- " + String.valueOf(mNumUsers));
-                }
-            });
-
-        }
-    };
+//    private Emitter.Listener onLogin = new Emitter.Listener() {
+//        @Override
+//        public void call(final Object... args) {
+//            getActivity().runOnUiThread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    JSONObject data = (JSONObject) args[0];
+//                    try {
+//                        mNumUsers = data.getInt("numUsers");
+//                    } catch (JSONException e) {
+//                        return;
+//                    }
+//                    mToolbar.setSubtitle("Members Online :- " + String.valueOf(mNumUsers));
+//                }
+//            });
+//
+//        }
+//    };
 
 
 
     private void addMessage( String username,  String message,  int type) {
 
-
         if (type == Message.TYPE_MESSAGE_USER && mLastMessageType == Message.TYPE_MESSAGE_USER){
             type=Message.TYPE_MESSAGE_USER_CONTINUE;
         }
+        final String tempusername = username;
+        final String tempmessage=message;
+        final int temptype=type;
 
-
-
-        final String tempusername = username; final String tempmessage=message; final int temptype=type;
         mMessageStore.executeTransaction(new Realm.Transaction() {
             @Override
             public void execute(Realm realm) {
@@ -413,8 +381,6 @@ public class ChatMainFragment extends Fragment {
                         .type(temptype)
                         .build();
                 realm.insert(completeMessage);
-
-
             }
         });
         mMessageAdapter.notifyItemInserted(messageRealmResults.size() - 1);
@@ -474,11 +440,11 @@ Message completeMessage = new Message();
     }
 
     private void addTyping(String username) {
-        mToolbar.setSubtitle(username + " is typing...");
+        mToolbar.setSubtitle("Typing...");
     }
 
     private void removeTyping() {
-        mToolbar.setSubtitle("Members Online :- " + String.valueOf(mNumUsers));
+        mToolbar.setSubtitle("Connected");
     }
 
     private void attemptSend() {
