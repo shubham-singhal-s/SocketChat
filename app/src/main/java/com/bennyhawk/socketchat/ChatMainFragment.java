@@ -42,6 +42,7 @@ public class ChatMainFragment extends Fragment {
     private MessageAdapter mMessageAdapter;
     private Realm mMessageStore;
     private Socket mSocket;
+    private Boolean mConnected =false;
     private Calendar calendar = Calendar.getInstance();
     private Toolbar mToolbar;
     private Handler mTypingHandler = new Handler();
@@ -51,36 +52,22 @@ public class ChatMainFragment extends Fragment {
     private String mReciever;
     private String mLastMessageUserName;
     private int mLastMessageType;
-    //private List<Message> mMessageArrayList=new ArrayList<>();
-//    private int mNumUsers = 0;
     private boolean mTyping = false;
 
     public ChatMainFragment() {
         // Required empty public constructor
     }
 
-//    public static ChatMainFragment newInstance(String userName) {
-//        ChatMainFragment fragment = new ChatMainFragment();
-//        Bundle args = new Bundle();
-//        args.putString(USER_NAME, userName);
-//        fragment.setArguments(args);
-//        return fragment;
-//    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mUserName = "pranav";
-            mReciever = "datta";
-        }
+            mUserName = "datta";
+            mReciever = "pranav";
 
         Realm.init(getContext());
         mMessageStore = Realm.getDefaultInstance();
-
         messageRealmResults = mMessageStore.where(Message.class).findAll();
-
-        //mMessageArrayList = mMessageStore.copyFromRealm(messageRealmResults);
 
         try {
             mSocket = IO.socket("http://139.59.35.160:4000");
@@ -91,32 +78,13 @@ public class ChatMainFragment extends Fragment {
         mSocket.on(Socket.EVENT_CONNECT, onConnect);
         mSocket.on(Socket.EVENT_CONNECT_ERROR, onConnectError);
         mSocket.on(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
-
-//        mSocket.on("user joined", onUserJoined);
-//        mSocket.on("user left", onUserLeft);
         mSocket.on("typing", onTyping);
         mSocket.on("stop typing", onStopTyping);
-//        mSocket.on("login", onLogin);
-
+        mSocket.on("konnect", onConn);
+        mSocket.on("remove connect", onRemConn);
         mSocket.on("message", onMessage);
         mSocket.connect();
-
-//        mSocket.emit("new user", mUserName, mReciever, new Ack() {
-//            @Override
-//            public void call(Object... args) {
-//                if (args[0].toString().equals("true")) {
-//                    getActivity().runOnUiThread(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            Toast.makeText(getActivity(), "Running!", Toast.LENGTH_SHORT).show();
-//                        }
-//                    });
-//                }
-//            }
-//        });
     }
-
-
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -138,7 +106,7 @@ public class ChatMainFragment extends Fragment {
         mMessageInput.addTextChangedListener(textWatcher);
 
         mToolbar.setTitle("Chat Client");
-        mToolbar.setSubtitle("Not connected");
+        //mToolbar.setSubtitle("Not connected");
         scrollToBottom();
 
         return view;
@@ -147,17 +115,15 @@ public class ChatMainFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-
+        mSocket.emit("remove connect");
         mSocket.disconnect();
-
         mSocket.off(Socket.EVENT_CONNECT, onConnect);
         mSocket.off(Socket.EVENT_CONNECT_ERROR, onConnectError);
         mSocket.off(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
-//        mSocket.off("user joined", onUserJoined);
-//        mSocket.off("user left", onUserLeft);
         mSocket.off("typing", onTyping);
         mSocket.off("stop typing", onStopTyping);
-//        mSocket.off("login", onLogin);
+        mSocket.off("konnect", onConn);
+        mSocket.off("remove connect", onRemConn);
         mToolbar.setSubtitle(null);
         mLastMessageUserName="";
         mLastMessageType=0;
@@ -218,14 +184,15 @@ public class ChatMainFragment extends Fragment {
             getActivity().runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    mSocket.emit("new user", mReciever, mUserName, new Ack() {
+                    mSocket.emit("new user", mUserName, mReciever, new Ack() {
                         @Override
                         public void call(Object... args) {
                             if (args[0].toString().equals("true")) {
                                 getActivity().runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        mToolbar.setSubtitle("Connected");
+                                        Toast.makeText(getActivity(), "Connected", Toast.LENGTH_SHORT).show();
+                                        mSocket.emit("konnect");
                                     }
                                 });
                             }
@@ -252,63 +219,28 @@ public class ChatMainFragment extends Fragment {
     private Emitter.Listener onMessage = new Emitter.Listener() {
         @Override
         public void call(final Object... args) {
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
                     JSONObject data = (JSONObject) args[0];
-                    Log.d("TAG",data.toString());
+                    Log.d("TAG", data.toString());
                     String username;
                     String message;
                     try {
-                        username = data.getString("user");
+                        username = data.getString("user").trim();
                         message = data.getString("msg");
                     } catch (JSONException e) {
                         Log.e("TAG", e.getMessage());
                         return;
                     }
 
-                    addMessage("", data.toString(),Message.TYPE_MESSAGE_OTHER);
+                    if(!username.equals(mUserName))
+                    addMessage(username, message, Message.TYPE_MESSAGE_OTHER);
+
+                }});
         }
     };
 
-
-//    private Emitter.Listener onUserJoined = new Emitter.Listener() {
-//        @Override
-//        public void call(final Object... args) {
-//            getActivity().runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    JSONObject data = (JSONObject) args[0];
-//                    String username;
-//                    try {
-//                        username = data.getString("username");
-//                        mNumUsers = data.getInt("numUsers");
-//                    } catch (JSONException e) {
-//                        Log.e(TAG, e.getMessage());
-//                        return;
-//                    }
-//                    addMessage("",username + " joined",Message.TYPE_LOG);
-//                }
-//            });
-//        }
-//    };
-//    private Emitter.Listener onUserLeft = new Emitter.Listener() {
-//        @Override
-//        public void call(final Object... args) {
-//            getActivity().runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    JSONObject data = (JSONObject) args[0];
-//                    String username;
-//                    try {
-//                        username = data.getString("username");
-//                        mNumUsers = data.getInt("numUsers");
-//                    } catch (JSONException e) {
-//                        Log.e(TAG, e.getMessage());
-//                        return;
-//                    }
-//                    addMessage("",username + " left",Message.TYPE_LOG);
-//                }
-//            });
-//        }
-//    };
 
     private Emitter.Listener onTyping = new Emitter.Listener() {
         @Override
@@ -316,15 +248,7 @@ public class ChatMainFragment extends Fragment {
             getActivity().runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    try {
-                        username = data.getString("username");
-                    } catch (JSONException e) {
-                        Log.e("TAG", e.getMessage());
-                        return;
-                    }
-                    addTyping(username);
+                    addTyping();
                 }
             });
         }
@@ -341,25 +265,44 @@ public class ChatMainFragment extends Fragment {
         }
     };
 
-//    private Emitter.Listener onLogin = new Emitter.Listener() {
-//        @Override
-//        public void call(final Object... args) {
-//            getActivity().runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    JSONObject data = (JSONObject) args[0];
-//                    try {
-//                        mNumUsers = data.getInt("numUsers");
-//                    } catch (JSONException e) {
-//                        return;
-//                    }
-//                    mToolbar.setSubtitle("Members Online :- " + String.valueOf(mNumUsers));
-//                }
-//            });
-//
-//        }
-//    };
+    private Emitter.Listener onConn = new Emitter.Listener() {
+        @Override
+        public void call(final Object... args) {
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    JSONObject data = (JSONObject) args[0];
+                    String username;
+                    try{
+                    username = data.getString("username");}
+                    catch (Exception e){
+                        return;
+                    }
+                    Boolean tempConnected = mConnected;
+                    if(!username.equals(mUserName)){
 
+                    mConnected=true;
+                        Log.d("Username", username);
+                    mToolbar.setSubtitle("Online");}
+                    if(!tempConnected)
+                        mSocket.emit("konnect");
+                }
+            });
+        }
+    };
+    private Emitter.Listener onRemConn = new Emitter.Listener() {
+        @Override
+        public void call(final Object... args) {
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if(mConnected){
+                        mConnected=false;
+                    mToolbar.setSubtitle(null);}
+                }
+            });
+        }
+    };
 
 
     private void addMessage( String username,  String message,  int type) {
@@ -367,16 +310,21 @@ public class ChatMainFragment extends Fragment {
         if (type == Message.TYPE_MESSAGE_USER && mLastMessageType == Message.TYPE_MESSAGE_USER){
             type=Message.TYPE_MESSAGE_USER_CONTINUE;
         }
-        final String tempusername = username;
         final String tempmessage=message;
         final int temptype=type;
+
+        if (type == Message.TYPE_MESSAGE_OTHER && username.equals(mUserName)){
+            return;
+        }
+
+
 
         mMessageStore.executeTransaction(new Realm.Transaction() {
             @Override
             public void execute(Realm realm) {
 
                 final Message completeMessage = new Message.MessageBuilder(calendar.getTime())
-                        .username(tempusername)
+                        .username("")
                         .message(tempmessage)
                         .type(temptype)
                         .build();
@@ -384,67 +332,17 @@ public class ChatMainFragment extends Fragment {
             }
         });
         mMessageAdapter.notifyItemInserted(messageRealmResults.size() - 1);
-        //mMessageAdapter.notifyDataSetChanged();
-
-
-
-
-
-
-
-
-
-/*
-
-Message completeMessage = realm.createObject(Message.class);
-        completeMessage.setmRecievedDate(calendar.getTime());
-        completeMessage.setmType(type);
-        completeMessage.setmUsername(username);
-        completeMessage.setmMessage(message);
-
-Message completeMessage = new Message();
-        completeMessage.setmRecievedDate(calendar.getTime());
-        completeMessage.setmType(type);
-        completeMessage.setmUsername(username);
-        completeMessage.setmMessage(message);
-
-        Log.d("TAG",username);
-
-        Log.d("TAG",mMessageArrayList.get(mMessageArrayList.size()-1).getmUsername());
-
-        Log.d("TAG",message);
-
-        Log.d("TAG",mMessageArrayList.get(mMessageArrayList.size()-1).getmMessage());
-
-
-        Log.d("TAG",String.valueOf(mMessageArrayList.get(mMessageArrayList.size()-1).getmType()));
-
-
-*/
-
-
-
-/*
-        mMessageStore.beginTransaction();
-        mMessageStore.insert(completeMessage);
-        mMessageStore.commitTransaction();
-
-*/
-
-
-        //Log.d("TAG",String.valueOf())
-
-
-
-        //scrollToBottom();
     }
 
-    private void addTyping(String username) {
+    private void addTyping() {
         mToolbar.setSubtitle("Typing...");
     }
 
     private void removeTyping() {
-        mToolbar.setSubtitle("Connected");
+        if(mConnected)
+        mToolbar.setSubtitle("Online");
+        else
+            mToolbar.setSubtitle(null);
     }
 
     private void attemptSend() {
@@ -478,5 +376,20 @@ Message completeMessage = new Message();
 
     private void scrollToBottom() {
         mMessageList.scrollToPosition(mMessageList.getAdapter().getItemCount());
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        mSocket.emit("remove connect");
+
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+            mSocket.emit("konnect");
+
     }
 }

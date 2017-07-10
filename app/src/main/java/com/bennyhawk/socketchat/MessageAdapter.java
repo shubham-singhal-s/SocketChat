@@ -2,8 +2,6 @@ package com.bennyhawk.socketchat;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.support.annotation.Nullable;
-import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -58,8 +56,8 @@ class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHolder> {
                 break;
 
             case Message.TYPE_MESSAGE_OTHER:
-                TextView userName = (TextView)v.findViewById(R.id.username);
-                userName.setVisibility(View.VISIBLE);
+                //TextView userName = (TextView)v.findViewById(R.id.username);
+                //userName.setVisibility(View.VISIBLE);
                 messageViewColor.setBackgroundColor(Color.parseColor("#FFFFFF"));
                 break;
 
